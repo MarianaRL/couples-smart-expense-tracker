@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weekly spending</title>
+<style>
+:root {
+  color-scheme: light;
+  --surface-1:#fcfcfb; --page:#f9f9f7;
+  --ink-1:#0b0b0b; --ink-2:#52514e; --ink-3:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
+  --accent:#2a78d6; --good:#006300; --bad:#b3261e;
+  --chip:#f0efec; --hover:rgba(11,11,11,0.045);
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-1:#1a1a19; --page:#0d0d0d;
+  --ink-1:#ffffff; --ink-2:#c3c2b7; --ink-3:#898781;
+  --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+  --accent:#3987e5; --good:#0ca30c; --bad:#e66767;
+  --chip:#262624; --hover:rgba(255,255,255,0.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface-1:#1a1a19; --page:#0d0d0d;
+    --ink-1:#ffffff; --ink-2:#c3c2b7; --ink-3:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+    --accent:#3987e5; --good:#0ca30c; --bad:#e66767;
+    --chip:#262624; --hover:rgba(255,255,255,0.06);
+  }
+}
+* { box-sizing:border-box; }
+html,body { margin:0; }
+body {
+  background:var(--page); color:var(--ink-1);
+  font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;
+  padding:0 0 64px;
+}
+.wrap { max-width:1060px; margin:0 auto; padding:0 20px; }
+header.top { display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; padding:26px 0 6px; }
+header.top h1 { font-size:21px; font-weight:650; margin:0; letter-spacing:-0.01em; }
+header.top .period { color:var(--ink-3); font-size:13px; }
+.spacer { flex:1; }
+button.ghost {
+  background:none; border:1px solid var(--border); color:var(--ink-2);
+  border-radius:8px; padding:5px 11px; font:inherit; font-size:13px; cursor:pointer;
+}
+button.ghost:hover { background:var(--hover); }
+.note {
+  display:inline-flex; gap:8px; align-items:center; margin:8px 0 0;
+  font-size:12.5px; color:var(--ink-2); background:var(--chip);
+  border:1px solid var(--border); border-radius:8px; padding:6px 10px;
+}
+.note b { font-weight:600; }
+nav.tabs { display:flex; gap:2px; margin:18px 0 0; border-bottom:1px solid var(--grid); }
+nav.tabs button {
+  background:none; border:none; font:inherit; font-size:14px; color:var(--ink-3);
+  padding:9px 14px 11px; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px;
+}
+nav.tabs button:hover { color:var(--ink-1); }
+nav.tabs button.on { color:var(--ink-1); font-weight:600; border-bottom-color:var(--accent); }
+.filters {
+  display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+  padding:14px 0 4px;
+}
+.filters label { font-size:12.5px; color:var(--ink-3); margin-right:-2px; }
+.filters select, .filters input[type="text"], .filters input[type="date"] {
+  background:var(--surface-1); color:var(--ink-1); border:1px solid var(--border);
+  border-radius:8px; padding:6px 8px; font:inherit; font-size:13px;
+}
+.filters input[type="text"] { width:190px; }
+.chipbar { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+.chip {
+  display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-2);
+  background:var(--chip); border:1px solid var(--border); border-radius:999px; padding:3px 10px;
+}
+.chip button { background:none;border:none;color:var(--ink-3);cursor:pointer;font-size:14px;padding:0 0 0 2px;line-height:1; }
+.grid-kpi { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin:16px 0 4px; }
+.card {
+  background:var(--surface-1); border:1px solid var(--border); border-radius:12px;
+  padding:16px 18px; margin:14px 0;
+}
+.card h2 { font-size:14.5px; font-weight:600; margin:0 0 2px; }
+.card .sub { font-size:12.5px; color:var(--ink-3); margin:0 0 10px; }
+.tile .lbl { font-size:12.5px; color:var(--ink-3); }
+.tile .val { font-size:26px; font-weight:650; letter-spacing:-0.01em; margin-top:2px; }
+.tile .dlt { font-size:12.5px; margin-top:2px; color:var(--ink-3); }
+.tile .dlt .up { color:var(--bad); }   /* subida de gastos = mau */
+.tile .dlt .down { color:var(--good); }
+svg text { font:11.5px system-ui,-apple-system,"Segoe UI",sans-serif; fill:var(--ink-3); }
+svg .vlabel { font-size:11px; fill:var(--ink-2); font-variant-numeric:tabular-nums; }
+svg .dlabel { font-size:11.5px; fill:var(--ink-2); }
+.legend { display:flex; gap:14px; flex-wrap:wrap; margin:10px 2px 0; }
+.legend .it { display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-2); cursor:default; }
+.legend .sw { width:10px; height:10px; border-radius:3px; display:inline-block; }
+.legend .ln { width:14px; height:2px; display:inline-block; }
+#tooltip {
+  position:fixed; z-index:50; pointer-events:none; display:none;
+  background:var(--surface-1); color:var(--ink-1); border:1px solid var(--border);
+  border-radius:10px; padding:9px 12px; font-size:12.5px;
+  box-shadow:0 6px 24px rgba(0,0,0,0.14); max-width:280px;
+}
+#tooltip .tt-title { color:var(--ink-3); font-size:12px; margin-bottom:4px; }
+#tooltip .row { display:flex; align-items:center; gap:7px; margin:2px 0; }
+#tooltip .key { width:12px; height:2.5px; border-radius:2px; flex:none; }
+#tooltip .v { font-weight:600; font-variant-numeric:tabular-nums; }
+#tooltip .n { color:var(--ink-2); }
+table.tx { width:100%; border-collapse:collapse; font-size:13px; }
+table.tx th {
+  text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:0.04em;
+  color:var(--ink-3); font-weight:600; padding:7px 8px; border-bottom:1px solid var(--grid);
+  cursor:pointer; user-select:none; white-space:nowrap;
+}
+table.tx td { padding:7px 8px; border-bottom:1px solid var(--grid); vertical-align:top; }
+table.tx tr.txrow { cursor:pointer; }
+table.tx tr.txrow:hover td { background:var(--hover); }
+table.tx td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+table.tx td.num.neg { color:var(--ink-1); }
+table.tx td.num.pos { color:var(--good); font-weight:600; }
+.catdot { display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:7px; vertical-align:baseline; }
+.muted { color:var(--ink-3); }
+.detail {
+  background:var(--chip); border-radius:10px; padding:12px 14px; margin:4px 0 8px;
+  font-size:13px;
+}
+.detail .drow { display:flex; gap:10px; margin:3px 0; }
+.detail .dk { color:var(--ink-3); width:120px; flex:none; }
+.detail select { font:inherit; font-size:13px; padding:4px 6px; border-radius:7px; border:1px solid var(--border); background:var(--surface-1); color:var(--ink-1); }
+.detail label.inline { display:inline-flex; gap:6px; align-items:center; font-size:12.5px; color:var(--ink-2); margin-left:10px; }
+.pager { display:flex; gap:8px; align-items:center; justify-content:center; padding:12px 0 2px; font-size:13px; color:var(--ink-3); }
+.setrow {
+  display:flex; align-items:center; gap:12px; padding:8px 4px; border-bottom:1px solid var(--grid);
+}
+.setrow:last-child { border-bottom:none; }
+.setrow input[type="color"] {
+  width:34px; height:26px; border:1px solid var(--border); border-radius:7px; padding:1px; background:var(--surface-1); cursor:pointer;
+}
+.setrow .nm { flex:1; }
+.setrow .tot { color:var(--ink-3); font-size:12.5px; font-variant-numeric:tabular-nums; min-width:110px; text-align:right; }
+.setrow label.inc { display:inline-flex; gap:6px; align-items:center; font-size:12.5px; color:var(--ink-2); white-space:nowrap; }
+.tbl-toggle { font-size:12.5px; color:var(--accent); background:none; border:none; cursor:pointer; padding:2px 0; font-family:inherit; }
+.hidden { display:none !important; }
+.weektbl { font-size:13px; border-collapse:collapse; margin-top:8px; }
+.weektbl td, .weektbl th { padding:4px 12px 4px 0; text-align:right; font-variant-numeric:tabular-nums; border-bottom:1px solid var(--grid); }
+.weektbl th { color:var(--ink-3); font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:0.04em; }
+.weektbl td:first-child, .weektbl th:first-child { text-align:left; }
+.empty { color:var(--ink-3); padding:22px 0; text-align:center; font-size:13.5px; }
+a.linky { color:var(--accent); cursor:pointer; text-decoration:none; }
+a.linky:hover { text-decoration:underline; }
+@media (max-width:640px){ .filters input[type="text"]{width:130px;} .tile .val{font-size:22px;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1 data-i18n="appTitle">Weekly spending</h1>
+    <span class="period" id="periodLbl"></span>
+    <div class="spacer"></div>
+    <button class="ghost" id="langBtn" title="Português / English" data-i18n="lang">EN</button>
+    <button class="ghost" id="themeBtn" data-i18n="theme">Theme</button>
+  </header>
+  <div class="note" id="dataNote"></div>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="overview" class="on" data-i18n="tabOverview">Overview</button>
+    <button data-tab="cats" data-i18n="tabCats">Categories</button>
+    <button data-tab="txs" data-i18n="tabTxs">Transactions</button>
+    <button data-tab="assist" data-i18n="tabAssist">Assistant</button>
+    <button data-tab="settings" data-i18n="tabSettings">Settings</button>
+  </nav>
+
+  <div class="filters" id="filterRow">
+    <label for="fRange" data-i18n="fPeriod">Period</label>
+    <select id="fRange">
+      <option value="all" data-i18n="fAll">All time</option>
+      <option value="w4" data-i18n="fW4">Last 4 weeks</option>
+      <option value="w12" selected data-i18n="fW12">Last 12 weeks</option>
+      <option value="y2026">2026</option>
+      <option value="y2025">2025</option>
+      <option value="custom" data-i18n="fCustom">Custom…</option>
+    </select>
+    <span id="customRange" class="hidden">
+      <input type="date" id="fFrom"> <input type="date" id="fTo">
+    </span>
+    <label for="fKind" data-i18n="fKind">Type</label>
+    <select id="fKind">
+      <option value="all" data-i18n="kAll">All</option>
+      <option value="compra" data-i18n="kBuy">Card purchases</option>
+      <option value="dd" data-i18n="kDD">Direct debits</option>
+      <option value="trf" data-i18n="kTrf">Transfers</option>
+      <option value="lev" data-i18n="kLev">Withdrawals</option>
+      <option value="receita" data-i18n="kInc">Income</option>
+    </select>
+    <label for="fCat" data-i18n="fCat">Category</label>
+    <select id="fCat"><option value="all" data-i18n="fCatAll">All</option></select>
+    <label for="fOwner" data-i18n="fOwner">Person</label>
+    <select id="fOwner">
+      <option value="all" data-i18n="fOwnerAll">All</option>
+      <option value="Minha" data-owner="Minha">Mine</option>
+      <option value="Namorado" data-owner="Namorado">Partner</option>
+      <option value="Partilhada" data-owner="Partilhada">Shared</option>
+    </select>
+    <input type="text" id="fSearch" data-i18n-ph="search">
+  </div>
+  <div class="chipbar" id="chips"></div>
+
+  <!-- ================= VISÃO GERAL ================= -->
+  <section id="tab-overview">
+    <div class="grid-kpi" id="kpis"></div>
+    <div class="card">
+      <h2 data-i18n="weeklyTitle">Spending by week</h2>
+      <p class="sub" id="weeklySub"></p>
+      <div id="weeklyChart"></div>
+      <button class="tbl-toggle" id="weeklyTblBtn" data-i18n="seeTable">Show table</button>
+      <div id="weeklyTbl" class="hidden"></div>
+    </div>
+    <div class="card">
+      <h2 data-i18n="ownerTitle">Split by person</h2>
+      <p class="sub" data-i18n="ownerSub"></p>
+      <div id="ownerSummary"></div>
+      <div id="ownerChart" style="margin-top:14px"></div>
+      <div class="legend" id="ownerLegend"></div>
+    </div>
+    <div class="card" id="weekDrill" style="display:none"></div>
+  </section>
+
+  <!-- ================= CATEGORIAS ================= -->
+  <section id="tab-cats" class="hidden">
+    <div class="card" id="suggestCard">
+      <h2 data-i18n="uncatTitle">Uncategorised</h2>
+      <p class="sub" id="suggestSub"></p>
+      <div id="suggestList"></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px">
+        <button class="ghost" id="applyStrong"></button>
+        <span id="suggestMsg" class="muted" style="font-size:12.5px"></span>
+      </div>
+    </div>
+    <div class="card">
+      <h2 data-i18n="stackTitle">Weekly spending by category</h2>
+      <p class="sub" data-i18n="stackSub"></p>
+      <div id="stackChart"></div>
+      <div class="legend" id="stackLegend"></div>
+    </div>
+    <div class="card">
+      <h2 data-i18n="catBarsTitle">Total by category</h2>
+      <p class="sub" id="catBarsSub"></p>
+      <div id="catBars"></div>
+    </div>
+  </section>
+
+  <!-- ================= TRANSAÇÕES ================= -->
+  <section id="tab-txs" class="hidden">
+    <div class="card">
+      <h2 data-i18n="txTitle">Transactions</h2>
+      <p class="sub" id="txCount"></p>
+      <div id="bulkBar" class="hidden" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--chip);border:1px solid var(--border);border-radius:10px;padding:8px 12px;margin:0 0 12px;font-size:13px">
+        <b id="bulkCount"></b>
+        <label for="bulkOwner" style="color:var(--ink-3);font-size:12.5px" data-i18n="fOwner">Person</label>
+        <select id="bulkOwner" style="font:inherit;font-size:13px;padding:5px 7px;border-radius:7px;border:1px solid var(--border);background:var(--surface-1);color:var(--ink-1)">
+          <option value="" data-i18n="bulkNoChange">— leave unchanged —</option>
+          <option value="Minha" data-owner="Minha">Mine</option>
+          <option value="Namorado" data-owner="Namorado">Partner</option>
+          <option value="Partilhada" data-owner="Partilhada">Shared</option>
+        </select>
+        <label for="bulkCat" style="color:var(--ink-3);font-size:12.5px" data-i18n="fCat">Category</label>
+        <select id="bulkCat" style="font:inherit;font-size:13px;padding:5px 7px;border-radius:7px;border:1px solid var(--border);background:var(--surface-1);color:var(--ink-1);max-width:220px"></select>
+        <button class="ghost" id="bulkApply" data-i18n="bulkApply">Apply</button>
+        <button class="ghost" id="bulkClear" data-i18n="bulkClear">Clear selection</button>
+        <span id="bulkMsg" class="muted" style="font-size:12.5px"></span>
+      </div>
+      <div style="overflow-x:auto">
+      <table class="tx" id="txTable">
+        <thead><tr>
+          <th style="width:28px"><input type="checkbox" id="selAll" data-i18n-title="selAllTitle"></th>
+          <th data-s="date" data-i18n="colDate">Date</th>
+          <th data-s="desc" data-i18n="colDesc">Description</th>
+          <th data-s="cat" data-i18n="colCat">Category</th>
+          <th data-s="owner" data-i18n="colOwner">Person</th>
+          <th data-s="amount" style="text-align:right" data-i18n="colAmount">Amount</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+      </div>
+      <div class="pager" id="pager"></div>
+    </div>
+  </section>
+
+  <!-- ================= ASSISTENTE ================= -->
+  <section id="tab-assist" class="hidden">
+    <div class="card">
+      <h2 data-i18n="importTitle">Import statements</h2>
+      <p class="sub" data-i18n="importSub"></p>
+      <div id="dropzone" style="border:1.5px dashed var(--axis);border-radius:12px;padding:26px 18px;text-align:center;color:var(--ink-3);font-size:13.5px;cursor:pointer">
+        <span data-i18n="dropHere"></span><span style="color:var(--accent);text-decoration:underline" data-i18n="chooseFiles"></span><br>
+        <span style="font-size:12px" data-i18n="dropTypes"></span>
+      </div>
+      <input type="file" id="importFiles" accept=".pdf,.csv,.txt" multiple class="hidden">
+      <div id="importLog" style="margin-top:12px;font-size:13px"></div>
+      <div id="csvMap" class="hidden" style="margin-top:12px"></div>
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="assistTitle">Assistant</h2>
+      <p class="sub" data-i18n="assistSub"></p>
+      <div id="chatLog" style="max-height:340px;overflow-y:auto;padding:4px 2px;margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="chatInput" data-i18n-ph="chatPlaceholder"
+          style="flex:1;font:inherit;font-size:13.5px;padding:9px 11px;border-radius:9px;border:1px solid var(--border);background:var(--surface-1);color:var(--ink-1)">
+        <button class="ghost" id="chatSend" data-i18n="send">Send</button>
+      </div>
+      <div class="chipbar" id="chatExamples" style="margin-top:8px"></div>
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="rulesTitle">Active rules</h2>
+      <p class="sub" data-i18n="rulesSub"></p>
+      <div id="rulesList"></div>
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="apiTitle">Free-form chat (optional)</h2>
+      <p class="sub" id="apiSub"></p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="password" id="apiKey" data-i18n-ph="apiKeyPh"
+          style="flex:1;min-width:240px;font:inherit;font-size:13px;padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface-1);color:var(--ink-1)">
+        <button class="ghost" id="apiSave" data-i18n="apiSave">Save key</button>
+        <button class="ghost" id="apiClear" data-i18n="remove">Remove</button>
+      </div>
+      <p class="muted" style="font-size:12px;margin:8px 0 0" data-i18n="apiNote"></p>
+    </div>
+  </section>
+
+  <!-- ================= DEFINIÇÕES ================= -->
+  <section id="tab-settings" class="hidden">
+    <div class="card">
+      <h2 data-i18n="setCatsTitle">Colours and categories</h2>
+      <p class="sub" data-i18n="setCatsSub"></p>
+      <div id="catSettings"></div>
+      <div style="margin-top:14px"><button class="ghost" id="resetColors" data-i18n="resetColors">Reset colours and settings</button></div>
+    </div>
+    <div class="card">
+      <h2 data-i18n="peopleTitle">People</h2>
+      <p class="sub" data-i18n="peopleSub"></p>
+      <div id="ownerSettings"></div>
+    </div>
+    <div class="card">
+      <h2 data-i18n="backupTitle">Backup</h2>
+      <p class="sub" data-i18n="backupSub"></p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="ghost" id="exportBtn" data-i18n="exportBtn">Export customisations</button>
+        <button class="ghost" id="importBtn" data-i18n="importBtn">Import…</button>
+        <input type="file" id="importFile" accept="application/json,.json" class="hidden">
+        <span id="portMsg" class="muted" style="font-size:12.5px"></span>
+      </div>
+    </div>
+    <div class="card">
+      <h2 data-i18n="dataTitle">Data</h2>
+      <div id="dataInfo" style="font-size:13px; color:var(--ink-2)"></div>
+    </div>
+  </section>
+</div>
+<div id="tooltip" role="status"></div>
+<script>
+const DATA = /*__DATA__*/[];
+</script>
+<script>
+/*__APP__*/
+</script>
+</body>
+</html>
