@@ -115,15 +115,24 @@ The categorisation rules live in `tools/rules.py` and are compiled into
 
 ## Bank support
 
-PDF parsing is written against **Moey / Crédito Agrícola** monthly statements
-(Portugal). It reconstructs each line from the text positions on the page, which
+PDF parsing reconstructs each line from the text positions on the page, which
 also means it recovers statements whose cross-reference tables are damaged.
 Several of the statements this was built against would not open in a normal PDF
 reader.
 
-For any other bank, export CSV and use the CSV importer. Adding a second PDF
-format means writing one parser function in `src/import.js`; the rest of the
-pipeline does not change.
+There are two parsers, tried in order. The first is tuned to **Moey / Crédito
+Agrícola** monthly statements (Portugal) and their exact column layout. If that
+finds nothing, a generic parser takes over: it looks for a header row (Date,
+Description, Debit, Credit, Balance, ...) in PT or EN to work out what each
+column means, and falls back to reading the trailing numbers on each
+transaction line by position when there is no header. Where a running balance
+is present, it is used to double-check the sign of each amount, which makes the
+generic parser reasonably layout-agnostic without any bank-specific code.
+
+This covers most PDF statements, but it is a heuristic, not a full PDF-table
+parser, so unusual layouts can still fail. When a PDF does not parse, export
+CSV instead and use the CSV importer, which detects columns automatically and
+shows them to you for confirmation.
 
 Re-importing a statement you already loaded adds nothing: transactions are
 identified by date, amount and running balance, which survives the small
