@@ -129,7 +129,7 @@ const catOf = t => overrides.byId[t.id] || overrides.byMerchant[t.merchant]
                 || (rulesFor(t).cat) || t._baseCat || t.cat;
 const allCats = () => [...CATS, ...Object.keys(settings.customCats)];
 /* Regras por transação têm prioridade sobre as por comerciante. Ao aplicar a um
-   comerciante inteiro, limpa as regras individuais desse comerciante — senão a
+   comerciante inteiro, limpa as regras individuais desse comerciante: senão a
    alteração ficava silenciosamente anulada pelas regras antigas. */
 function setCatForMerchant(merchant, v){
   overrides.byMerchant[merchant]=v;
@@ -204,7 +204,7 @@ function buildModel(){
   const signOfId=id=>{ const t=BY_ID.get(id); return t && t.amount>0 ? "+" : "-"; };
   /* categorização automática: peso 1 */
   for(const t of DATA) add(t.merchant, t.cat, 1, t.amount>0?"+":"-");
-  /* correções da Mariana: peso 12 — dominam sempre a automática */
+  /* correções da Mariana: peso 12: dominam sempre a automática */
   for(const [merch,cat] of Object.entries(overrides.byMerchant)){
     const any=DATA.find(t=>t.merchant===merch);
     add(merch,cat,12, any && any.amount>0 ? "+" : "-");
@@ -238,8 +238,11 @@ const tr_ = (k,...a) => t(k,...a);  /* alias: dentro de txRow/toggleDetail, 't' 
 const $ = s => document.querySelector(s);
 let fmtEUR, fmtEUR0;
 function setLocale(){
-  fmtEUR=new Intl.NumberFormat(LOCALE(),{style:"currency",currency:"EUR"});
-  fmtEUR0=new Intl.NumberFormat(LOCALE(),{style:"currency",currency:"EUR",maximumFractionDigits:0});
+  /* useGrouping:"always": o pt-PT por defeito só separa a partir de 5 dígitos,
+     e 9999 € ficava sem ponto ao lado de 99.999 € */
+  const o={style:"currency",currency:"EUR",useGrouping:"always"};
+  fmtEUR=new Intl.NumberFormat(LOCALE(),o);
+  fmtEUR0=new Intl.NumberFormat(LOCALE(),{...o,maximumFractionDigits:0});
 }
 setLocale();
 const eur = v => fmtEUR.format(v);
@@ -250,7 +253,7 @@ const fmtD = iso => { const d=pDate(iso); return `${d.getDate()} ${MESES_()[d.ge
 const fmtDshort = iso => { const d=pDate(iso); return `${d.getDate()} ${MESES_()[d.getMonth()]}`; };
 const addDays = (iso,n) => { const d=pDate(iso); d.setDate(d.getDate()+n); return isoOf(d); };
 const mondayOf = iso => { const d=pDate(iso); const wd=(d.getDay()+6)%7; d.setDate(d.getDate()-wd); return isoOf(d); };
-const weekLabel = wk => `${fmtDshort(wk)}–${fmtDshort(addDays(wk,6))}`;
+const weekLabel = wk => `${fmtDshort(wk)} ${t("rangeSep")} ${fmtDshort(addDays(wk,6))}`;
 const el = (tag, attrs, ...children) => {
   const e = document.createElement(tag);
   if(attrs) for(const [k,v] of Object.entries(attrs)){
@@ -420,7 +423,7 @@ function renderKPIs(agg){
   const tiles = [
     [t("kpiAvg"), eur(agg.avg), deltaNode],
     [t("kpiTotal"), eur(agg.totalExp), el("div",{class:"dlt"},t("weeksWithData",agg.nDataWeeks))],
-    [t("kpiIncome"), eur(agg.totalInc), el("div",{class:"dlt"},`${t("balance")} ${agg.totalInc-agg.totalExp>=0?"+":"−"}${eur(Math.abs(agg.totalInc-agg.totalExp))}`)],
+    [t("kpiIncome"), eur(agg.totalInc), el("div",{class:"dlt"},`${t("balance")} ${agg.totalInc-agg.totalExp>=0?"+":"-"}${eur(Math.abs(agg.totalInc-agg.totalExp))}`)],
     [t("kpiCount"), String(agg.txs.length), null],
   ];
   for(const [lbl,val,extra] of tiles){
@@ -459,7 +462,7 @@ function renderWeekly(agg){
     if(Math.abs(tvr)<1e-9) continue;
     svg.append(svgEl("line",{x1:m.l,x2:W-m.r,y1:y(tvr),y2:y(tvr),stroke:"var(--grid)","stroke-width":1}));
     svg.append(svgEl("text",{x:m.l-8,y:y(tvr)+4,"text-anchor":"end",class:"vlabel"},
-      (tvr<0?"−":"")+fmtEUR0.format(Math.abs(tvr))));
+      (tvr<0?"-":"")+fmtEUR0.format(Math.abs(tvr))));
   }
   svg.append(svgEl("line",{x1:m.l,x2:W-m.r,y1:y(0),y2:y(0),stroke:"var(--axis)","stroke-width":1}));
   svg.append(svgEl("text",{x:m.l-8,y:y(0)+4,"text-anchor":"end",class:"vlabel"},fmtEUR0.format(0)));
@@ -499,7 +502,7 @@ function renderWeekly(agg){
         rows.push({color:"var(--accent)", value:eur(w.total), name:w.full?t("expenses"):t("incompleteWeek")});
         rows.push({color:INC_COLOR, value:eur(w.inc||0), name:t("received")});
         const bal=(w.inc||0)-w.total;
-        rows.push({value:(bal>=0?"+":"−")+eur(Math.abs(bal)), name:t("balance")});
+        rows.push({value:(bal>=0?"+":"-")+eur(Math.abs(bal)), name:t("balance")});
         [...w.cats.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3)
           .forEach(([c,v])=>rows.push({color:catColor(c), value:eur(v), name:catLabel(c)}));
       } else rows.push({value:t("noDataShort"), name:t("missingStatement")});
@@ -526,8 +529,8 @@ function renderWeekly(agg){
       return el("tr",null,
         el("td",null,weekLabel(w.wk)),
         el("td",null,w.hasData? eur(w.total) : t("noDataShort")),
-        el("td",null,w.hasData? eur(w.inc||0) : "—"),
-        el("td",null,w.hasData? (bal>=0?"+":"−")+eur(Math.abs(bal)) : "—"));
+        el("td",null,w.hasData? eur(w.inc||0) : "-"),
+        el("td",null,w.hasData? (bal>=0?"+":"-")+eur(Math.abs(bal)) : "-"));
     }));
   $("#weeklyTbl").replaceChildren(tbl);
 }
@@ -579,7 +582,7 @@ function renderOwner(agg){
       el("div",{style:"font-size:12.5px;color:var(--ink-3)"},
         el("span",{class:"catdot",style:`background:${ownerColor(o)}`}),oLbl(o)),
       el("div",{style:"font-size:19px;font-weight:650;margin-top:1px"},eur(v)),
-      el("div",{style:"font-size:12px;color:var(--ink-3)"},total? (v/total*100).toFixed(0)+"%" : "—")));
+      el("div",{style:"font-size:12px;color:var(--ink-3)"},total? (v/total*100).toFixed(0)+"%" : "-")));
   }
   if(state.owner==="all"){
     row.append(el("div",{style:"margin-left:auto;text-align:right"},
@@ -968,9 +971,9 @@ function renderSettings(){
     const row=el("div",{class:"setrow"},
       color,
       el("span",{class:"nm"},catLabel(c), settings.customCats[c]? el("span",{class:"muted",style:"font-size:11.5px"},t("custom")):null),
-      el("span",{class:"tot"},totals.get(c)?eur(totals.get(c)):"—"),
+      el("span",{class:"tot"},totals.get(c)?eur(totals.get(c)):"-"),
       el("label",{class:"inc"},chk,t("isExpense")),
-      el("span",{class:"tot",style:"min-width:96px"},incTotals.get(c)?eur(incTotals.get(c)):"—"),
+      el("span",{class:"tot",style:"min-width:96px"},incTotals.get(c)?eur(incTotals.get(c)):"-"),
       el("label",{class:"inc"},ichk,t("isIncome")));
     if(settings.customCats[c]){
       const del=el("button",{class:"ghost",title:t("remove"),style:"padding:3px 9px;font-size:12px"},t("remove"));
@@ -1009,7 +1012,7 @@ function renderSettings(){
     oh.append(el("div",{class:"setrow"},
       color,
       el("span",{class:"nm"},ownerLabel(o) + (o===OWNER_DEFAULT? t("byDefault"):"")),
-      el("span",{class:"tot"},ototals.get(o)?eur(ototals.get(o)):"—")));
+      el("span",{class:"tot"},ototals.get(o)?eur(ototals.get(o)):"-")));
   }
   $("#dataInfo").replaceChildren(
     el("p",null,t("dataCount",DATA.length,fmtD(MIN_DATE),fmtD(MAX_DATE))),
@@ -1087,7 +1090,7 @@ function renderAll(){
 function boot(){
   LANG=detectLang(); setLocale(); applyStaticI18n();
   rebuildData(); tagKinds(); recomputeCoverage();
-  const setPeriod=()=>{$("#periodLbl").textContent=`${fmtD(MIN_DATE)} — ${fmtD(MAX_DATE)}`;};
+  const setPeriod=()=>{$("#periodLbl").textContent=`${fmtD(MIN_DATE)} ${t("rangeSep")} ${fmtD(MAX_DATE)}`;};
   setPeriod(); window.setPeriod=setPeriod;
   $("#dataNote").style.display="none";
   /* categorias no filtro */

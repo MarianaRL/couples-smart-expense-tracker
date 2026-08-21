@@ -1,0 +1,18 @@
+# Construído: refazer com python3 build.py
+dist/
+
+# Dados bancários reais: NUNCA versionar
+data/
+*.pdf
+transactions*.json
+!demo/demo-transactions.json
+personalizacoes*.json
+gastos-personalizacoes*.json
+
+# Ruído habitual
+.DS_Store
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+frames/

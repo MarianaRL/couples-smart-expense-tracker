@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Motor de categorização — regras partilhadas entre o build (Python) e a app (JS).
+"""Motor de categorização: regras partilhadas entre o build (Python) e a app (JS).
 
 Ordem: comerciante conhecido (pesquisa/conhecimento) -> regras por palavra-chave
 -> heurísticas genéricas. Tudo case-insensitive.
@@ -154,7 +154,7 @@ MERCHANTS = {
 }
 
 # ------------------------------------------------------------------- palavras
-# (categoria, regex) — avaliadas por ordem, sempre case-insensitive.
+# (categoria, regex): avaliadas por ordem, sempre case-insensitive.
 KEYWORDS = [
     # rendimentos / movimentos internos primeiro
     ("Rendimentos", r"ORDENADOS|FORNECEDOR\s*-"),

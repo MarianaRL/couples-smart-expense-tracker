@@ -1,4 +1,4 @@
-# Weekly spending — a shared-expenses tracker for couples
+# Weekly spending: a shared-expenses tracker for couples
 
 A single-file web app that turns bank statements into a picture of where a
 couple's money goes. Every expense can be tagged as **yours**, **your
@@ -16,11 +16,11 @@ is uploaded, and there is no backend, no account and no tracking.
 ## What it does
 
 **Reads your statements in the browser.** Drop in the monthly PDF statements
-from your bank and they are parsed locally — no upload, no third-party service.
-The PDF text extractor is written from scratch on top of the browser's own
-`DecompressionStream`, so there is no PDF library to trust or update. CSV from
-any other bank works too, with the columns detected automatically and shown to
-you for confirmation.
+from your bank and they are parsed locally, with no upload and no third-party
+service. The PDF text extractor is written from scratch on top of the browser's
+own `DecompressionStream`, so there is no PDF library to trust or update. CSV
+from any other bank works too, with the columns detected automatically and shown
+to you for confirmation.
 
 **Categorises automatically, then learns from you.** A rule engine assigns a
 category from the transaction description. When you correct one, the correction
@@ -29,7 +29,7 @@ the pattern to suggest categories for merchants it has never seen. Your
 corrections are weighted twelve times heavier than the automatic guesses, so the
 model follows you rather than the other way round.
 
-**Splits spending between two people.** Each transaction carries a person —
+**Splits spending between two people.** Each transaction carries a person:
 mine, my partner's, or shared. Shared is the default, so you only mark the
 exceptions. The overview shows the weekly split and computes "your share" as
 your own spending plus half of the shared.
@@ -37,13 +37,13 @@ your own spending plus half of the shared.
 **Takes instructions in plain language.** Type *"anything with cinema is
 leisure"* or *"groceries over 40 are shared"* and the assistant shows you the
 rule it understood, how many transactions it matches and three examples, before
-anything is applied. It also answers questions: *"how much did I spend on
-transport in June?"*. This runs entirely offline — no API key, no cost, no data
-leaving the device. An Anthropic API key can be added for free-form chat, but it
-is optional and off by default.
+anything is applied. It also answers questions such as *"how much did I spend on
+transport in June?"*. This runs entirely offline, with no API key, no cost and
+no data leaving the device. An Anthropic API key can be added for free-form
+chat, but it is optional and off by default.
 
 **Charts that show both directions.** Spending sits above the axis and money
-received below it, on one shared scale — never a second y-axis. Weekly totals,
+received below it, on one shared scale, never a second y-axis. Weekly totals,
 category stacks, and a drill-down into any week's transactions.
 
 **Bilingual and themed.** English and Portuguese, picked from your browser and
@@ -73,7 +73,7 @@ HTML file; the app itself is plain JavaScript with no dependencies.
 
 ## Your data
 
-The repository ships with **invented data only** — a fictional couple, fictional
+The repository ships with **invented data only**: a fictional couple, fictional
 merchants. No real statement is included, and `.gitignore` is set up to keep
 real ones out.
 
@@ -117,8 +117,8 @@ The categorisation rules live in `tools/rules.py` and are compiled into
 
 PDF parsing is written against **Moey / Crédito Agrícola** monthly statements
 (Portugal). It reconstructs each line from the text positions on the page, which
-also means it recovers statements whose cross-reference tables are damaged —
-several of the statements this was built against would not open in a normal PDF
+also means it recovers statements whose cross-reference tables are damaged.
+Several of the statements this was built against would not open in a normal PDF
 reader.
 
 For any other bank, export CSV and use the CSV importer. Adding a second PDF
@@ -146,4 +146,4 @@ differences in how a description gets split across lines.
 
 ## Licence
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

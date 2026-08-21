@@ -1,4 +1,4 @@
-/* Gerado a partir de rules.py — motor de categorização para movimentos importados. */
+/* Gerado a partir de rules.py: motor de categorização para movimentos importados. */
 const MERCHANT_MAP = {
  "CME CANIDELO": "Saúde e farmácia",
  "CEPI": "Saúde e farmácia",

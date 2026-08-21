@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Gera dados de demonstração — casal fictício, comerciantes inventados.
+"""Gera dados de demonstração: casal fictício, comerciantes inventados.
 
 Nada aqui vem de dados reais. Os nomes são inventados de propósito para não se
 confundirem com negócios existentes. As categorias vêm atribuídas, e alguns

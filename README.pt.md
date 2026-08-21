@@ -1,4 +1,4 @@
-# Gastos semanais — despesas partilhadas para casais
+# Gastos semanais: despesas partilhadas para casais
 
 Uma app numa única página que transforma extratos bancários numa imagem clara de
 onde vai o dinheiro de um casal. Cada despesa pode ser marcada como **minha**,
@@ -35,4 +35,4 @@ categorias, regras e atribuições para outro dispositivo ou de guardares uma c�
 
 ## Licença
 
-MIT — ver [LICENSE](LICENSE).
+MIT. Ver [LICENSE](LICENSE).
