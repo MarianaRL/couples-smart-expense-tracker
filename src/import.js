@@ -159,12 +159,115 @@ function parseMoeyPages(pages){
   return txns;
 }
 
+/* ---------- extratos genéricos (qualquer outro banco) ----------
+   Sem layout fixo: procura uma linha de cabeçalho com rótulos conhecidos
+   (Data, Descrição, Débito, Crédito, Saldo, ...) para saber a que coluna
+   pertence cada valor; na falta de cabeçalho, usa a posição dos valores
+   dentro da linha. O sinal do montante é confirmado pela diferença entre
+   saldos consecutivos, sempre que essa informação existe. */
+const HEAD_KEYS = {
+  date:    /^(data|date|fecha)\b/i,
+  desc:    /^(descri|histor|detalhe|memo|movimento|concepto|refer[eê]ncia|transaction|details)/i,
+  debit:   /^(d[eé]bito|debit|sa[ií]da|cargo|payments?\/?debits?)/i,
+  credit:  /^(cr[eé]dito|credit|entrada|abono|deposits?\/?credits?)/i,
+  amount:  /^(montante|valor|importe|amount|value)/i,
+  balance: /^(saldo|balance|balan[cç]o)/i
+};
+const DATE_ANY_START = /^(\d{4}-\d{2}-\d{2}|\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{1,2}[\s\-\/][A-Za-zçÇ]{3,9}\.?[\s\-\/,]+\d{2,4}|[A-Za-zçÇ]{3,9}\.?[\s\-\/,]+\d{1,2},?[\s\-\/,]+\d{2,4})/;
+const NOISE_GENERIC = /(p[aá]gina|page \d|iban|bic|swift|extracto|extrato|statement|saldo (inicial|final|anterior)|total de|nif|nipc|www\.|https?:\/\/)/i;
+function looksLikeAmount(t){
+  return /^[+-]?\(?(?:\d{1,3}(?:[.,]\d{3})*|\d+)[.,]\d{2}\)?-?$/.test(t);
+}
+function findHeaderCols(allLines){
+  for(const segs of allLines){
+    const roles=[];
+    for(const [x,raw] of segs){
+      const txt=raw.trim();
+      for(const role in HEAD_KEYS){
+        if(HEAD_KEYS[role].test(txt)){ roles.push({x,role}); break; }
+      }
+    }
+    const has=r=>roles.some(o=>o.role===r);
+    if(has("date") && (has("amount")||has("balance")||has("debit")||has("credit"))) return roles;
+  }
+  return null;
+}
+function parseGenericPages(pages){
+  const allLines=[]; for(const lines of pages) for(const segs of lines) allLines.push(segs);
+  const cols=findHeaderCols(allLines);
+  const numAnchors = cols? cols.filter(c=>c.role==="debit"||c.role==="credit"||c.role==="amount"||c.role==="balance") : [];
+  const dateAnchor = cols? cols.find(c=>c.role==="date") : null;
+
+  const txns=[];
+  let prevBalance=null;
+  for(const lines of pages){
+    for(const raw of lines){
+      const segs=raw.map(([x,t])=>[x,t.trim()]).filter(([,t])=>t);
+      if(!segs.length) continue;
+      const [fx,ft]=segs[0];
+      const dm=DATE_ANY_START.exec(ft);
+      const date=dm? parseDateAny(dm[1]) : null;
+      const dateOk = date && (!dateAnchor || Math.abs(fx-dateAnchor.x)<80);
+      if(dateOk){
+        const rest0=ft.slice(dm[0].length).trim();
+        const descParts=[]; if(rest0) descParts.push(rest0);
+        const numSegs=[];
+        for(const [x,t] of segs.slice(1)){
+          if(looksLikeAmount(t)){
+            const v=parseAmountAny(t);
+            if(v!=null) numSegs.push({x,v}); else descParts.push(t);
+          } else descParts.push(t);
+        }
+        if(!numSegs.length) continue;
+        let amount=null, balance=null, debit=null, credit=null;
+        if(numAnchors.length){
+          for(const ns of numSegs){
+            let best=null,bd=Infinity;
+            for(const a of numAnchors){ const d=Math.abs(ns.x-a.x); if(d<bd){ bd=d; best=a; } }
+            if(!best) continue;
+            if(best.role==="balance") balance=ns.v;
+            else if(best.role==="amount") amount=ns.v;
+            else if(best.role==="debit") debit=ns.v;
+            else if(best.role==="credit") credit=ns.v;
+          }
+        }
+        if(amount==null && balance==null && debit==null && credit==null){
+          numSegs.sort((a,b)=>a.x-b.x);
+          if(numSegs.length>=2){ balance=numSegs[numSegs.length-1].v; amount=-Math.abs(numSegs[numSegs.length-2].v); }
+          else amount=-Math.abs(numSegs[0].v);
+        }
+        if(amount==null && (debit!=null||credit!=null)){
+          if(debit!=null) amount=-Math.abs(debit);
+          else amount=Math.abs(credit);
+        }
+        if(amount==null) continue;
+        if(balance!=null && prevBalance!=null){
+          const diff=Math.round((balance-prevBalance)*100)/100, absA=Math.abs(amount);
+          if(Math.abs(diff-absA)<0.02) amount=absA;
+          else if(Math.abs(diff+absA)<0.02) amount=-absA;
+        }
+        txns.push({
+          date, valueDate:date,
+          desc: descParts.join(" ").replace(/\s{2,}/g," ").trim() || "Movimento importado",
+          amount, balance
+        });
+        if(balance!=null) prevBalance=balance;
+      } else if(txns.length && segs.length===1 && !looksLikeAmount(ft) && ft.length>2 && !NOISE_GENERIC.test(ft) && fx>=30){
+        txns[txns.length-1].desc += " "+ft;
+      }
+    }
+  }
+  return txns;
+}
+
 async function importPdf(file){
   const pages = await pdfTextLines(await file.arrayBuffer());
-  const txns = parseMoeyPages(pages);
-  /* validação: a cadeia de saldos tem de fechar */
+  let txns = parseMoeyPages(pages);
+  if(!txns.length) txns = parseGenericPages(pages);
+  /* validação: a cadeia de saldos tem de fechar, quando há saldo a validar */
   let breaks=0;
   for(let i=1;i<txns.length;i++){
+    if(txns[i-1].balance==null || txns[i].balance==null) continue;
     if(Math.abs(Math.round((txns[i-1].balance+txns[i].amount)*100)/100 - txns[i].balance) > 0.005) breaks++;
   }
   return {txns, breaks, pages:pages.length};
@@ -195,7 +298,11 @@ function parseCSV(text){
   const sep=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0];
   return {rows:lines.map(l=>splitCSVLine(l,sep)), sep};
 }
-/* datas em vários formatos comuns */
+/* datas em vários formatos comuns, incluindo nomes de mês PT/EN */
+const MONTH_NUM = {
+  jan:1,fev:2,feb:2,mar:3,abr:4,apr:4,mai:5,may:5,jun:6,jul:7,
+  ago:8,aug:8,set:9,sep:9,out:10,oct:10,nov:11,dez:12,dec:12
+};
 function parseDateAny(s){
   s=(s||"").trim();
   let m=/^(\d{4})-(\d{2})-(\d{2})/.exec(s); if(m) return `${m[1]}-${m[2]}-${m[3]}`;
@@ -203,6 +310,16 @@ function parseDateAny(s){
   if(m) return `${m[3]}-${String(m[2]).padStart(2,"0")}-${String(m[1]).padStart(2,"0")}`;
   m=/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2})$/.exec(s);
   if(m) return `20${m[3]}-${String(m[2]).padStart(2,"0")}-${String(m[1]).padStart(2,"0")}`;
+  m=/^(\d{1,2})[\s\-\/]+([A-Za-zçÇ]{3,9})\.?[\s\-\/,]+(\d{2,4})$/.exec(s);
+  if(m){
+    const mo=MONTH_NUM[m[2].slice(0,3).toLowerCase()];
+    if(mo){ let y=m[3]; if(y.length===2) y="20"+y; return `${y}-${String(mo).padStart(2,"0")}-${String(m[1]).padStart(2,"0")}`; }
+  }
+  m=/^([A-Za-zçÇ]{3,9})\.?[\s\-\/,]+(\d{1,2}),?[\s\-\/,]+(\d{2,4})$/.exec(s);
+  if(m){
+    const mo=MONTH_NUM[m[1].slice(0,3).toLowerCase()];
+    if(mo){ let y=m[3]; if(y.length===2) y="20"+y; return `${y}-${String(mo).padStart(2,"0")}-${String(m[2]).padStart(2,"0")}`; }
+  }
   return null;
 }
 /* valores "1.234,56" | "1,234.56" | "-12.34" */

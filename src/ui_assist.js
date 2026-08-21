@@ -48,7 +48,8 @@ async function handleFiles(files){
           continue;
         }
         const {added,dup}=mergeTxns(r.txns,"pdf:"+file.name);
-        const warn = r.breaks? t("balancesBad",r.breaks) : t("balancesOk");
+        const hasBalance = r.txns.some(x=>x.balance!=null);
+        const warn = !hasBalance? t("balancesUnknown") : r.breaks? t("balancesBad",r.breaks) : t("balancesOk");
         row.replaceChildren(el("b",null,file.name), t("importedN",added,dup,warn));
       } else {
         const text=await file.text();
